@@ -4,7 +4,26 @@
 
 
 
+## 개요
+
+> 1. 업무분석: 데이터베이스 모델링(개념 - 논리 - 물리)
+> 2. 데이터베이스 생성
+> 3. 테이블 생성: 필드명, 데이터타입, 길이, 제약조건
+> 4. 데이터 입력/활용
+> 5. 인덱스, 뷰, 스토어드 프로시저, 함수, 트리거, 커서
+> 6. 백업/복원
+
+
+
+
+
 ## 1. 업무분석
+
+### 1) 데이터베이스 모델링
+
+- 개념 - 논리 - 물리적 모델링
+
+
 
 
 
@@ -12,9 +31,26 @@
 
 __CREATE DATABASE__
 
+```sql
+DROP DATABASE IF EXISTS ShopDB;
+DROP DATABASE IF EXISTS ModelDB;
+DROP DATABASE IF EXISTS sqlDB;
+DROP DATABASE IF EXISTS tableDB;
+
+CREATE DATABASE tableDB;
+```
+
+
+
 
 
 ## 3. 테이블 생성/삭제
+
+### 1) 테이블 생성
+
+- 필드명, 데이터타입, 길이, 제약조건 등
+
+
 
 __CREATE TABLE__
 
@@ -27,6 +63,8 @@ CREATE TABLE indexTBL
 
 
 
+__데이터를 끌어와 테이블 생성__
+
 ```sql
 USE sqlDB;
 CREATE TABLE bigTBL1 (SELECT * FROM employees.employees);
@@ -38,6 +76,268 @@ DROP TABLE bigTBL2; -- 테이블이 사라짐
 TRUNCATE TABLE bigTBL3; -- 테이블 남아있음 (영향받은 행 기록 없음)
 
 ```
+
+
+
+__테이블 생성__
+
+```sql
+DROP DATABASE IF EXISTS tableDB;
+CREATE DATABASE tableDB;
+
+USE tableDB;
+DROP TABLE IF EXISTS buyTBL, userTBL;
+
+CREATE TABLE userTBL -- 회원 테이블
+( userID  char(8), -- 사용자 아이디
+  name    nvarchar(10), -- 이름
+  birthYear   int,  -- 출생연도
+  addr	  nchar(2), -- 지역(경기,서울,경남 등으로 글자만 입력)
+  mobile1	char(3), -- 휴대폰의국번(011, 016, 017, 018, 019, 010 등)
+  mobile2   char(8), -- 휴대폰의 나머지 전화번호(하이픈 제외)
+  height    smallint,  -- 키
+  mDate    date  -- 회원 가입일
+);
+
+CREATE TABLE buyTBL -- 구매 테이블
+(  num int, -- 순번(PK)
+   userid  char(8),-- 아이디(FK)
+prodName nchar(6), -- 물품명
+   groupName nchar(4) , -- 분류
+   price     int , -- 단가
+   amount    smallint -- 수량
+);
+```
+
+
+
+### 3-1 제약조건
+
+- 데이터의 무결성을 지키기 위한 제한된 조건
+- 6가지 제약조건
+  - PRIMARY KEY: UNIQUE+NOT NULL, 자동으로 클러스터형 인덱스 생성, 하나 이상의 열로 설정 가능
+    - 클러스터형 인덱스: 시스템이 만들어주는 인덱스
+    - 보통 하나의 열로 지정하지, 두개를 묶어서 지정하는 경우는 거의 없다
+  - FOREIGN KEY
+  - UNIQUE: NULL 허용, Alternate Key 라고도 부름
+  - CHECK: 입력되는 데이터를 점검하는 기능 ex) 키에 마이너스값 불가
+  - DEFAULT
+  - NULL(NOT NULL)
+
+
+
+__PRIMARY KEY__
+
+```sql
+-- PRIMARY KEY를 무엇으로 할지 가장 먼저 생각하고 정하자
+DROP TABLE IF EXISTS buyTBL, userTBL;
+CREATE TABLE userTBL 
+( userID  char(8) NOT NULL PRIMARY KEY, 
+   name    varchar(10) NOT NULL, 
+   birthYear   int NOT NULL,  
+   addr	  char(2) NOT NULL,
+   mobile1	char(3) NULL, 
+   mobile2   char(8) NULL, 
+   height    smallint NULL,
+   mDate    date NULL 
+   
+DROP TABLE IF EXISTS buyTBL;
+CREATE TABLE buyTBL 
+(  num int AUTO_INCREMENT NOT NULL PRIMARY KEY , 
+   userid  char(8) NOT NULL ,
+   prodName char(6) NOT NULL,
+   groupName char(4) NULL , 
+   price     int  NOT NULL,
+   amount    smallint  NOT NULL,
+ 	 FOREIGN KEY(userid) REFERENCES userTBL(userID) -- FK는 가장 뒤에 적는것이 관례
+```
+
+
+
+__CONSTRAINT__
+
+```sql
+-- 뒤에 constraint 를 붙여서 이름을 지정해줄 수도 있다 예) PK_userTBL_userID
+DROP TABLE IF EXISTS userTBL;
+CREATE TABLE userTBL 
+( userID  CHAR(8) NOT NULL, 
+  name    VARCHAR(10) NOT NULL, 
+  birthYear   INT NOT NULL,  
+  CONSTRAINT PRIMARY KEY PK_userTBL_userID (userID)
+```
+
+
+
+```sql
+-- fk 이름 지정
+DROP TABLE IF EXISTS buyTBL;
+CREATE TABLE buyTBL 
+(  num INT AUTO_INCREMENT NOT NULL PRIMARY KEY , 
+   userID  CHAR(8) NOT NULL, 
+   prodName CHAR(6) NOT NULL,
+   CONSTRAINT FK_userTBL_buyTBL FOREIGN KEY(userID) REFERENCES userTBL(userID)
+);
+```
+
+
+
+- 제약조건은 보통 CREATE TABLE 시에 생성하지만, ALTER TABLE에서도 사용 가능 
+  - 나중에 제약이 필요한 경우
+
+```sql
+-- 후에 pk 설정
+DROP TABLE IF EXISTS userTBL;
+CREATE TABLE userTBL 
+(   userID  CHAR(8) NOT NULL, 
+    name    VARCHAR(10) NOT NULL, 
+    birthYear   INT NOT NULL
+);
+ALTER TABLE userTBL
+	ADD CONSTRAINT PK_userTBL_userID PRIMARY KEY (userID);
+```
+
+
+
+```sql
+-- 후에 fk 설정
+DROP TABLE IF EXISTS buyTBL;
+CREATE TABLE buyTBL 
+(  num INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+   userID  CHAR(8) NOT NULL, 
+   prodName CHAR(6) NOT NULL 
+);
+ALTER TABLE buyTBL
+    ADD CONSTRAINT FK_userTBL_buyTBL 
+    FOREIGN KEY (userID) 
+    REFERENCES userTBL(userID);
+    
+SHOW INDEX FROM buyTBL ;
+```
+
+
+
+__외래키 제약조건__
+
+- ON UPDATE CASCADE: update 내용이 같이 적용됨
+- ON DELETE CASCADE: delete 내용이 같이 적용됨
+- 지정하지 않으면 ON UPDATE NO ACTION, ON DELETE NO ACTION
+
+
+
+__CHECK__
+
+```sql
+-- 출생연도가 1900년 이후 그리고 2020년 이전, 이름은 반드시 넣어야 함.
+DROP TABLE IF EXISTS userTBL;
+CREATE TABLE userTBL 
+( userID  CHAR(8) PRIMARY KEY,
+  name    VARCHAR(10), 
+  birthYear  INT CHECK (birthYear >= 1900 AND birthYear <= 2020),
+  mobile1	char(3) NULL, 
+  CONSTRAINT CK_name CHECK (name IS NOT NULL)  -- check 의 이름 지정
+);
+```
+
+
+
+```sql
+ALTER TABLE userTbl
+	ADD CONSTRAINT CK_mobile1
+	CHECK  (mobile1 IN ('010','011','016','017','018','019')) ;
+```
+
+
+
+```sql
+SET foreign_key_checks = 0;  -- 외래 키 제약조건 비활성화
+INSERT INTO buyTBL VALUES(NULL, 'BBK', N'모니터', N'전자', 200,  5);
+INSERT INTO buyTBL VALUES(NULL, 'KBS', N'청바지', N'의류', 50,   3);
+INSERT INTO buyTBL VALUES(NULL, 'BBK', N'메모리', N'전자', 80,  10);
+INSERT INTO buyTBL VALUES(NULL, 'SSK', N'책'    , N'서적', 15,   5);
+INSERT INTO buyTBL VALUES(NULL, 'EJW', N'책'    , N'서적', 15,   2);
+INSERT INTO buyTBL VALUES(NULL, 'EJW', N'청바지', N'의류', 50,   1);
+INSERT INTO buyTBL VALUES(NULL, 'BBK', N'운동화', NULL   , 30,   2);
+INSERT INTO buyTBL VALUES(NULL, 'EJW', N'책'    , N'서적', 15,   1);
+INSERT INTO buyTBL VALUES(NULL, 'BBK', N'운동화', NULL   , 30,   2);
+SET foreign_key_checks = 1; -- 외래 키 제약조건 활성화
+```
+
+
+
+__DEFAULT__
+
+```sql
+DROP TABLE IF EXISTS userTBL;
+CREATE TABLE userTBL 
+( userID  	char(8) NOT NULL PRIMARY KEY,  
+  name    	varchar(10) NOT NULL, 
+  birthYear	int NOT NULL DEFAULT -1,
+  addr	  	char(2) NOT NULL DEFAULT '서울', -- 값이 없으면 '서울'이 default로 들어감
+  mobile1	char(3) NULL, 
+  mobile2	char(8) NULL, 
+  height	smallint NULL DEFAULT 170, 
+  mDate    	date NULL
+);
+```
+
+
+
+```sql
+-- ALTER 문에서 DEFAULT 지정
+DROP TABLE IF EXISTS userTBL;
+CREATE TABLE userTBL 
+( userID	char(8) NOT NULL PRIMARY KEY,  
+  name		varchar(10) NOT NULL, 
+  birthYear	int NOT NULL ,
+  addr		char(2) NOT NULL,
+  mobile1	char(3) NULL, 
+  mobile2	char(8) NULL, 
+  height	smallint NULL, 
+  mDate	date NULL 
+);
+ALTER TABLE userTBL
+	ALTER COLUMN birthYear SET DEFAULT -1;
+ALTER TABLE userTBL
+	ALTER COLUMN addr SET DEFAULT '서울';
+ALTER TABLE userTBL
+	ALTER COLUMN height SET DEFAULT 170;
+	
+-- default 문은 DEFAULT로 설정된 값을 자동 입력한다.
+INSERT INTO userTBL VALUES ('LHL', '이혜리', default, default, '011', '1234567', default, '2022.12.12');
+-- 열이름이 명시되지 않으면 DEFAULT로 설정된 값을 자동 입력한다
+INSERT INTO userTBL(userID, name) VALUES('KAY', '김아영');
+-- 값이 직접 명기되면 DEFAULT로 설정된 값은 무시된다.
+INSERT INTO userTBL VALUES ('WB', '원빈', 1982, '대전', '019', '9876543', 176, '2023.5.5');
+
+SELECT * FROM userTBL;
+```
+
+
+
+### 테이블 압축
+
+### 임시 테이블
+
+- 세션 내에서만 존재하고 세션이 닫히면 자동 삭제
+
+```sql
+USE employees;
+CREATE TEMPORARY TABLE  IF NOT EXISTS  tempTBL (id INT, name CHAR(7));
+CREATE TEMPORARY TABLE  IF NOT EXISTS employees (id INT, name CHAR(7));
+DESCRIBE tempTBL;
+DESCRIBE employees;
+```
+
+
+
+### 2) 테이블 삭제: DROP TABLE
+
+- 외래키 재약조건의 기준 테이블 삭제 불가
+- 외래키가 생성된 외래키 테이블을 먼저 삭제
+
+
+
+### 3) 테이블 수정: ALTER TABLE
 
 
 
@@ -59,6 +359,8 @@ INSERT INTO indexTBL
 
 
 __id 자동 생성(AUTO_INCREMENT)__
+
+- 자동으로 증가함(default: 1부터 1씩)
 
 ```sql
 USE  sqlDB;
@@ -162,6 +464,8 @@ __ON DUPLICATE KEY UPDATE__
 
 
 
+
+
 ### 5) WITH / CTE
 
 - 최근 문법
@@ -181,6 +485,8 @@ AS
 
 
 
+
+
 ## 5. 데이터 조회/활용
 
 ```sql
@@ -193,7 +499,34 @@ SELECT * FROM indexTBL;
 
 ## 6. 인덱스
 
+- 목적: 빠른 검색
+- 장단점: 대용량의 테이블에서 검색속도 빨라짐(+), 추가적인 공간 10% 정도 필요(-), 처음 생성시간 오래걸림(-)
+- SELECT 가 많은 경우에 유용. INSERT, UPDATE, DELETE 가 많은 경우 굳이 생성할 필요 없음
+
+
+
+### 1) 인덱스의 종류
+
+​	(1) 클러스터형 인덱스: 인덱스 생성시 데이터 페이지 전체 다시 정렬
+
+​	(2) 보조 인덱스: 검색속도는 느리지만 데이터 입력/수정/삭제는 덜 느림
+
+### 2) 제약조건과 관련되는 인덱스
+
+### 3) 인덱스의 내부작동
+
+### 4) 인덱스의 생성/변경/삭제
+
 __CREATE INDEX__
+
+```sql
+CREATE INDEX idx_userTBL_addr 
+   ON userTBL (addr);
+
+SHOW INDEX FROM userTBL ;
+
+SHOW TABLE STATUS LIKE 'userTBL -- 테이블 상태 보기
+```
 
 ```sql
 CREATE INDEX idx_indexTBL_firstname ON indexTBL(first_name);
@@ -205,9 +538,32 @@ EXPLAIN SELECT * FROM indexTBL WHERE first_name = 'Mary';
 
 
 
+__DROP INDEX__
+
+```sql
+DROP INDEX idx_userTBL_addr ON userTBL;
+```
+
+
+
+### 5) 인덱스의 성능
+
+### 6) 인덱스를 생성해야 하는 경우
+
+
+
 
 
 ## 7. 뷰
+
+- 일반 사용자 입장에서는 테이블과 동일하게 사용하는 개체
+- 효율성과 보안!
+- 보통 읽기 전용으로 사용
+- 뷰를 통해 원래 테이블의 데이터를 수정하는 것도 가능(UPDATE 사용)
+
+
+
+__뷰 생성__
 
 ```sql
 CREATE VIEW uv_memberTBL
@@ -218,13 +574,62 @@ AS
 
 
 
+__조인 테이블을 뷰로 만들기__
+
+```sql
+USE tableDB;
+CREATE VIEW v_userTBL
+AS
+	SELECT userid, name, addr FROM userTBL;
+
+SELECT * FROM v_userTBL;  -- 뷰를 테이블이라고 생각해도 무방
+
+SELECT U.userid, U.name, B.prodName, U.addr, CONCAT(U.mobile1, U.mobile2)  AS '연락처'
+FROM userTBL U
+  INNER JOIN buyTBL B
+     ON U.userid = B.userid ;
+
+-- 조인한 내용을 테이블로 만들어두었기 때문에 계속 사용가능(효율적)
+CREATE VIEW v_userbuyTBL
+AS
+SELECT U.userid, U.name, B.prodName, U.addr, CONCAT(U.mobile1, U.mobile2)  AS '연락처'
+FROM userTBL U
+	INNER JOIN buyTBL B
+	 ON U.userid = B.userid ;
+
+SELECT * FROM v_userbuyTBL WHERE name = N'김범수';
+```
 
 
-## 8. 스토어드 프로시저
+
+
+
+## 8. 스토어드 프로그램
+
+## 8-1. 스토어드 프로시저
 
 - MariaDB에서 제공해주는 프로그래밍 기능 ()
 - SQL 문을 하나로 묶어서 편리하게 사용하는 기능: 속도가 빠르다
 - 직접 작성하는 것보다 가져다 쓰는 경우가 더 많을 것!
+
+
+
+__기본문법__
+
+```sql
+DELIMITER $$
+CREATE PROCEDURE
+BEGIN
+
+
+END $$
+DELIMITER;
+CALL
+```
+
+
+
+__프로시저 생성__
 
 ```sql
 DELIMITER $$
@@ -233,14 +638,96 @@ BEGIN -- 이 부분에 SQL 프로그래밍 코딩
 	SELECT * FROM memberTBL WHERE memberName = '당탕이' ;
 	SELECT * fROM productTBL WHERE productName = '냉장고' ;
 END $$
-DELIMITER ;
+DELIMITER ; -- 끝이다 라는 것을 알려주는 용도
 
 CALL myProc() ;
 ```
 
 
 
-__IF ELSE__
+```sql
+USE sqlDB;
+DROP PROCEDURE IF EXISTS userProc1;
+DELIMITER $$
+CREATE PROCEDURE userProc1(IN userName VARCHAR(10))
+BEGIN
+  SELECT * FROM userTBL WHERE name = userName; 
+END $$
+DELIMITER ;
+
+CALL userProc1('조관우');
+```
+
+
+
+```sql
+-- 두개의 입력 매개변수가 있는 경우
+DROP PROCEDURE IF EXISTS userProc2;
+DELIMITER $$
+CREATE PROCEDURE userProc2(
+    IN userBirth INT, 
+    IN userHeight INT
+)
+BEGIN
+  SELECT * FROM userTBL 
+    WHERE birthYear > userBirth AND height > userHeight;
+END $$
+DELIMITER ;
+
+CALL userProc2(1970, 178);
+```
+
+
+
+```sql
+-- OUT 매개변수: 직접 값을 입력하는 게 아니라 값을 받아와서 입력
+DROP PROCEDURE IF EXISTS userProc3;
+DELIMITER $$
+CREATE PROCEDURE userProc3(
+    IN txtValue CHAR(10),
+    OUT outValue INT
+)
+BEGIN
+  INSERT INTO testTBL VALUES(NULL,txtValue);
+  SELECT MAX(id) INTO outValue FROM testTBL; 
+END $$
+DELIMITER ;
+
+CREATE TABLE IF NOT EXISTS testTBL(
+    id INT AUTO_INCREMENT PRIMARY KEY, 
+    txt CHAR(10)
+);
+
+CALL userProc3 ('테스트값', @myValue);
+SELECT CONCAT('현재 입력된 ID 값 ==>', @myValue);
+```
+
+
+
+__IFELSE PROCEDURE__
+
+```sql
+DROP PROCEDURE IF EXISTS ifelseProc;
+DELIMITER $$
+CREATE PROCEDURE ifelseProc(
+    IN userName VARCHAR(10)
+)
+BEGIN
+    DECLARE bYear INT; -- 변수 선언
+    SELECT birthYear into bYear FROM userTBL
+        WHERE name = userName;
+    IF (bYear >= 1980) THEN
+            SELECT '아직 젊군요..';
+    ELSE
+            SELECT '나이가 지긋하네요..';
+    END IF;
+END $$
+DELIMITER ;
+
+CALL ifelseProc ('조용필');
+```
+
+
 
 ```sql
 DROP PROCEDURE IF EXISTS ifProc; -- 기존에 만든적이 있다면 삭제
@@ -290,7 +777,41 @@ CALL ifProc3();
 
 
 
-__CASE__
+__CASE PROCEDURE__
+
+```sql
+DROP PROCEDURE IF EXISTS caseProc;
+DELIMITER $$
+CREATE PROCEDURE caseProc(
+    IN userName VARCHAR(10)
+)
+BEGIN
+    DECLARE bYear INT; 
+    DECLARE tti  CHAR(3);-- 띠
+    SELECT birthYear INTO bYear FROM userTBL
+        WHERE name = userName;
+    CASE 
+        WHEN ( bYear%12 = 0) THEN    SET tti = '원숭이';
+        WHEN ( bYear%12 = 1) THEN    SET tti = '닭';
+        WHEN ( bYear%12 = 2) THEN    SET tti = '개';
+        WHEN ( bYear%12 = 3) THEN    SET tti = '돼지';
+        WHEN ( bYear%12 = 4) THEN    SET tti = '쥐';
+        WHEN ( bYear%12 = 5) THEN    SET tti = '소';
+        WHEN ( bYear%12 = 6) THEN    SET tti = '호랑이';
+        WHEN ( bYear%12 = 7) THEN    SET tti = '토끼';
+        WHEN ( bYear%12 = 8) THEN    SET tti = '용';
+        WHEN ( bYear%12 = 9) THEN    SET tti = '뱀';
+        WHEN ( bYear%12 = 10) THEN    SET tti = '말';
+        ELSE SET tti = '양';
+    END CASE;
+    SELECT CONCAT(userName, '의 띠 ==>', tti);
+END $$
+DELIMITER ;
+
+CALL caseProc ('김범수');
+```
+
+
 
 ```sql
 DROP PROCEDURE IF EXISTS caseProc; 
@@ -322,7 +843,39 @@ CALL caseProc();
 
 
 
-__WHILE__
+__WHILE PROCEDURE (for문은 없음)__
+
+```sql
+DROP TABLE IF EXISTS guguTBL;
+CREATE TABLE guguTBL (txt VARCHAR(100)); -- 구구단 저장용 테이블
+
+DROP PROCEDURE IF EXISTS whileProc;
+DELIMITER $$
+CREATE PROCEDURE whileProc()
+BEGIN
+    DECLARE str VARCHAR(100); -- 각 단을 문자열로 저장
+    DECLARE i INT; -- 구구단 앞자리
+    DECLARE k INT; -- 구구단 뒷자리
+    SET i = 2; -- 2단부터 계산
+    
+    WHILE (i < 10) DO  -- 바깥 반복문. 2단~9단까지.
+        SET str = ''; -- 각 단의 결과를 저장할 문자열 초기화
+        SET k = 1; -- 구구단 뒷자리는 항상 1부터 9까지.
+        WHILE (k < 10) DO
+            SET str = CONCAT(str, '  ', i, 'x', k, '=', i*k); -- 문자열 만들기
+            SET k = k + 1; -- 뒷자리 증가
+        END WHILE;
+        SET i = i + 1; -- 앞자리 증가
+        INSERT INTO guguTBL VALUES(str); -- 각 단의 결과를 테이블에 입력.
+    END WHILE;
+END $$
+DELIMITER ;
+
+CALL whileProc();
+SELECT * FROM guguTBL;
+```
+
+
 
 ```sql
 DROP PROCEDURE IF EXISTS whileProc2; 
@@ -357,10 +910,216 @@ CALL whileProc2();
 
 
 
-## 9. 트리거
+__프로시저 수정과 삭제: ALTER PROCEDURE, DROP PROCEDURE__
+
+
+
+
+
+## 8-2. 스토어드 함수
+
+__기본문법__
 
 ```sql
-CREATE TABLE deleteMmeberTBL (
+DELIMITER $$
+CREATE FUNCTION
+	RETURNS
+BEGIN
+	RETURN
+END $$
+DELIMITER;
+
+SELECT 함수이름();
+```
+
+
+
+```sql
+USE sqlDB;
+DROP FUNCTION IF EXISTS getAgeFunc;
+DELIMITER $$
+CREATE FUNCTION getAgeFunc(bYear INT)
+    RETURNS INT
+BEGIN
+    DECLARE age INT;
+    SET age = YEAR(CURDATE()) - bYear;
+    RETURN age;
+END $$
+DELIMITER ;
+
+SELECT getAgeFunc(1979);
+```
+
+
+
+__함수 활용__
+
+```sql
+-- 나이차 출력하기
+SELECT getAgeFunc(1979) INTO @age1979; --변수에 받음
+SELECT getAgeFunc(1997) INTO @age1997;
+SELECT CONCAT('1997년과 1979년의 나이차 ==> ', (@age1979-@age1997));
+
+-- 만 나이 출력하기
+SELECT userID, name, getAgeFunc(birthYear) AS '만 나이' FROM userTBL;
+```
+
+
+
+현재 저장된 스토어드 함수의 이름 및 내용 확인: __SHOW CREATE FUNCTION__
+
+```sql
+SHOW CREATE FUNCTION getAgeFunc ;
+```
+
+
+
+__함수삭제__
+
+```sql
+DROP FUNCTION getAgeFunc;
+```
+
+
+
+
+
+## 8-3. 커서
+
+- SELECT로 요청한 데이터를 받아놓을 "그릇"
+- 커서는 pointer로 데이터를 가리키고 있고,
+- 커서의 내용을 가져오는 것이 __"fetch"__
+- 포인터를 돌리면서 커서에 있는 데이터를 하나씩 fetch해오는 것
+
+
+
+### 처리순서
+
+- 커서의 선언
+- 커서 열기
+- 커서에서 데이터 가져오기(FETCH)
+- 데이터 처리
+- 커서 닫기
+
+
+
+__커서의 활용__
+
+```sql
+DROP PROCEDURE IF EXISTS cursorProc;
+DELIMITER $$
+CREATE PROCEDURE cursorProc()
+BEGIN
+    DECLARE userHeight INT; -- 고객의 키
+    DECLARE cnt INT DEFAULT 0; -- 고객의 인원 수(=읽은 행의 수)
+    DECLARE totalHeight INT DEFAULT 0; -- 키의 합계
+
+    DECLARE endOfRow BOOLEAN DEFAULT FALSE; -- 행의 끝 여부(기본을 FALSE)
+
+    DECLARE userCuror CURSOR FOR-- 커서 선언
+        SELECT height FROM userTBL;
+
+    DECLARE CONTINUE HANDLER -- 에러처리: 행의 끝이면 endOfRow 변수에 TRUE를 대입 
+        FOR NOT FOUND SET endOfRow = TRUE;
+
+    OPEN userCuror;  -- 커서 열기 (커서가 실행됨)
+
+    cursor_loop: LOOP
+        FETCH  userCuror INTO userHeight; -- 고객 키 1개를 대입
+
+        IF endOfRow THEN -- 더이상 읽을 행이 없으면 Loop를 종료
+            LEAVE cursor_loop;
+        END IF;
+
+        SET cnt = cnt + 1;
+        SET totalHeight = totalHeight + userHeight;        
+    END LOOP cursor_loop;
+    
+    -- 고객 키의 평균을 출력한다.
+    SELECT CONCAT('고객 키의 평균 ==> ', (totalHeight/cnt));
+
+    CLOSE userCuror;  -- 커서 닫기
+END $$
+DELIMITER ;
+
+CALL cursorProc();
+```
+
+
+
+__유령고객 판단__
+
+```sql
+USE sqlDB;
+ALTER TABLE userTBL ADD grade VARCHAR(5);  -- 고객 등급 열 추가
+
+
+DROP PROCEDURE IF EXISTS gradeProc;
+DELIMITER $$
+CREATE PROCEDURE gradeProc()
+BEGIN
+    DECLARE id VARCHAR(10); -- 사용자 아이디를 저장할 변수
+    DECLARE hap BIGINT; -- 총 구매액을 저장할 변수
+    DECLARE userGrade CHAR(5); -- 고객 등급 변수
+    
+    DECLARE endOfRow BOOLEAN DEFAULT FALSE; 
+
+    DECLARE userCuror CURSOR FOR-- 커서 선언
+        SELECT U.userid, sum(price*amount)
+            FROM buyTBL B
+                RIGHT OUTER JOIN userTBL U -- 유령고객을 판단하기 위해 right outer join
+                ON B.userid = U.userid
+            GROUP BY U.userid, U.name ;
+
+    DECLARE CONTINUE HANDLER 
+        FOR NOT FOUND SET endOfRow = TRUE;
+
+    OPEN userCuror;  -- 커서 열기
+    grade_loop: LOOP
+        FETCH  userCuror INTO id, hap; -- 첫 행 값을 대입
+        IF endOfRow THEN
+            LEAVE grade_loop;
+        END IF;
+
+        CASE  
+            WHEN (hap >= 1500) THEN SET userGrade = '최우수고객';
+            WHEN (hap  >= 1000) THEN SET userGrade ='우수고객';
+            WHEN (hap >= 1) THEN SET userGrade ='일반고객';
+            ELSE SET userGrade ='유령고객';
+         END CASE;
+
+        UPDATE userTBL SET grade = userGrade WHERE userID = id; -- 새로만든 컬럼에 값을 업데이트
+    END LOOP grade_loop;
+
+    CLOSE userCuror;  -- 커서 닫기
+END $$
+DELIMITER ;
+
+CALL gradeProc();
+SELECT * FROM userTBL;
+```
+
+
+
+__참고) CREATE TABLE 시에 커서와 조건문을 활용하여 데이터를 바로 입력하는 방법도 있다__
+
+
+
+
+
+## 8-4. 트리거
+
+- 테이블에 삽입, 수정, 삭제 등의 작업(이벤트)이 발생할 때 자동으로 작동되는 개체
+
+
+
+__AFTER TRIGGER__
+
+- 작업이 일어났을 때 작동하는 트리거
+- __TRUNCATE TABLE__은 트리거 작동하지 않음
+
+```sql
+CREATE TABLE deleteMemberTBL (
 	memberID char(8),
 	memberName char(5),
 	memberAddress char(20),
@@ -382,11 +1141,128 @@ DELIMITER ;
 
 
 
-## 10. 커서
+```sql
+USE sqlDB;
+CREATE TABLE IF NOT EXISTS testTbl (id INT, txt VARCHAR(10));
+INSERT INTO testTbl VALUES(1, '이엑스아이디');
+INSERT INTO testTbl VALUES(2, '애프터스쿨');
+INSERT INTO testTbl VALUES(3, '에이오에이');
+
+DROP TRIGGER IF EXISTS testTrg;
+DELIMITER // 
+CREATE TRIGGER testTrg  -- 트리거 이름
+    AFTER  DELETE -- 삭제후에 작동하도록 지정
+    ON testTbl -- 트리거를 부착할 테이블
+    FOR EACH ROW -- 각 행마다 적용시킴
+BEGIN
+	SET @msg = '가수 그룹이 삭제됨' ; -- 트리거 실행시 작동되는 코드들
+END // 
+DELIMITER ;
+
+SET @msg = '';
+INSERT INTO testTbl VALUES(4, '나인뮤지스');
+SELECT @msg;
+UPDATE testTbl SET txt = '에이핑크' WHERE id = 3;
+SELECT @msg;
+DELETE FROM testTbl WHERE id = 4;
+SELECT @msg;
+```
+
+
+
+__수정, 삭제된 테이블 내용을 트리거로 확인하기__
+
+```sql
+USE sqlDB;
+DROP TABLE buyTBL; -- 구매테이블은 실습에 필요없으므로 삭제.
+CREATE TABLE backup_userTBL
+( userID  char(8) NOT NULL PRIMARY KEY, 
+  name    varchar(10) NOT NULL, 
+  birthYear   int NOT NULL,  
+  addr	  char(2) NOT NULL, 
+  mobile1	char(3), 
+  mobile2   char(8), 
+  height    smallint,  
+  mDate    date,
+  modType  char(2), -- 변경된 타입. '수정' 또는 '삭제'
+  modDate  date, -- 변경된 날짜
+  modUser  varchar(256) -- 변경한 사용자
+);
+
+DROP TRIGGER IF EXISTS backUserTbl_UpdateTrg;
+DELIMITER // 
+CREATE TRIGGER backUserTbl_UpdateTrg  -- 트리거 이름
+    AFTER UPDATE -- 변경 후에 작동하도록 지정
+    ON userTBL -- 트리거를 부착할 테이블
+    FOR EACH ROW 
+BEGIN
+    INSERT INTO backup_userTBL VALUES( OLD.userID, OLD.name, OLD.birthYear, 
+        OLD.addr, OLD.mobile1, OLD.mobile2, OLD.height, OLD.mDate, 
+        '수정', CURDATE(), CURRENT_USER() );
+END // 
+DELIMITER ;
+
+
+DROP TRIGGER IF EXISTS backUserTbl_DeleteTrg;
+DELIMITER // 
+CREATE TRIGGER backUserTbl_DeleteTrg  -- 트리거 이름
+    AFTER DELETE -- 삭제 후에 작동하도록 지정
+    ON userTBL -- 트리거를 부착할 테이블
+    FOR EACH ROW 
+BEGIN
+    INSERT INTO backup_userTBL VALUES( OLD.userID, OLD.name, OLD.birthYear, 
+        OLD.addr, OLD.mobile1, OLD.mobile2, OLD.height, OLD.mDate, 
+        '삭제', CURDATE(), CURRENT_USER() );
+END // 
+DELIMITER ;
+```
+
+
+
+
+
+__BEFORE TRIGGER__
+
+- 이벤트가 발생하기 전에 작동하는 트리거
+
+- commit을 하기 전에 수행되었던 insert, update, delete 이벤트로 작동
+
+```sql
+USE sqlDB;
+DROP TRIGGER IF EXISTS userTBL_BeforeInsertTrg;
+DELIMITER // 
+CREATE TRIGGER userTBL_BeforeInsertTrg  -- 트리거 이름
+    BEFORE INSERT -- 입력 전에 작동하도록 지정
+    ON userTBL -- 트리거를 부착할 테이블
+    FOR EACH ROW 
+BEGIN
+    IF NEW.birthYear < 1900 THEN
+        SET NEW.birthYear = 0;
+    ELSEIF NEW.birthYear > YEAR(CURDATE()) THEN
+        SET NEW.birthYear = YEAR(CURDATE());
+    END IF;
+END // 
+DELIMITER ;
+
+INSERT INTO userTBL VALUES('AAA', '에이', 1877, '서울', '011', '1112222', 181, '2019-12-25');
+INSERT INTO userTBL VALUES('BBB', '비이', 2977, '경기', '011', '1113333', 171, '2011-3-25');
+
+SHOW TRIGGERS FROM sqlDB;
+
+DROP TRIGGER userTBL_BeforeInsertTrg;
+```
+
+
+
+__ALTER TRIGGER 사용 불가__
+
+
 
 
 
 ## 11. 백업/복원
+
+
 
 
 
@@ -599,10 +1475,6 @@ GROUP BY uName ;
 
 
 
-
-
-
-
 __JSON데이터__
 
 - json 이 많이 사용되기 시작하면서 지원
@@ -615,7 +1487,7 @@ __JSON데이터__
 
 
 
-## 조인
+## JOIN
 
 ### INNER JOIN
 
@@ -690,6 +1562,8 @@ SELECT U.userID, U.name, B.prodName, U.addr, CONCAT(U.mobile1, U.mobile2)  AS '�
          ON U.userID = B.userID 
    ORDER BY U.userID;
 ```
+
+
 
 
 
@@ -778,6 +1652,8 @@ WHERE name IN (
 
 
 
+
+
 ## SQL 프로그래밍
 
 ### 오류처리
@@ -854,19 +1730,9 @@ SELECT * FROM myTable;
 
 
 
-# 데이터베이스 모델링
+# 데이터베이스 모델링 실습
 
-
-
-## 1. 프로젝트의 진행 단계
-
-
-
-모델링 실습
-
-
-
-게시판을 활용하여 회원들이 글을 쓰고, 댓글을 사용하고, 파일을 업로드할 수 있는 데이터베이스 모델링
+>  게시판을 활용하여 회원들이 글을 쓰고, 댓글을 사용하고, 파일을 업로드할 수 있는 데이터베이스 모델링
 
 
 
@@ -874,19 +1740,11 @@ SELECT * FROM myTable;
 
 1. 사용자: 사용자id(pk), 패스워드, 이름, 가입일시, 성별, 연령, 작성글수, 댓글수 등 (이외 필요한 개인정보)
 
-
-
 2. 게시판: 게시판명(pk), 게시글수 등
-
-
 
 3. 작성글: 작성글번호(pk), 게시판명(fk), 글 제목, 작성자id(fk), 작성일시, 내용, 조회수, 댓글수, 댓글id
 
-
-
 4. 댓글: 댓글id(pk), 작성글번호(fk), 작성자id(fk), 작성일시, 내용, 
-
-
 
 5. 파일: 파일id(pk), 파일명, 작성글번호(fk), 업로드일시, 파일형식, 용량, 파일저장위치
 
@@ -894,7 +1752,7 @@ SELECT * FROM myTable;
 
 
 
-1. 업무파악
+1. __업무파악__
 
 - 게시판 등록: 제목, 등록내용, 누가(회원), 언제(작성일시), 조회수
 - 회원등록: 회원id, 회원pw, 회원이름, 성별, 이메일, 전화번호, 주소 등
